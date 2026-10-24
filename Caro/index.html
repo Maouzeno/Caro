@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cờ Caro (Gomoku) - Kiến Trúc Đa Tệp MVC Mở Rộng</title>
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Header -->
+  <header>
+    <h1 class="brand-title">CARO GOMOKU</h1>
+    <div class="brand-subtitle">
+      <span>5 In A Row Battle</span>
+      <span class="badge-tag">Kiến Trúc Đa Tệp 5 Module</span>
+    </div>
+  </header>
+
+  <!-- Main Game Layout -->
+  <div class="game-layout">
+    
+    <!-- SIDEBAR: Controls, Status & Scores -->
+    <aside class="sidebar">
+      
+      <!-- Card 1: Mode Selection -->
+      <div class="card">
+        <div class="mode-selector">
+          <button class="btn-mode active" id="btn-mode-pvp" data-mode="pvp">
+            <span>👥</span> 2 Người (PvP)
+          </button>
+          <button class="btn-mode" id="btn-mode-pve" data-mode="pve">
+            <span>🤖</span> Đấu Máy (PvE)
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 2: Turn Info & Timer -->
+      <div class="card turn-card">
+        <div class="turn-header">
+          <span class="turn-label">LƯỢT ĐI HIỆN TẠI</span>
+          <div class="turn-badge turn-x" id="turn-badge">
+            <span class="turn-stone-icon" id="turn-stone-icon">✕</span>
+            <span id="turn-player-name">Người chơi 1 (X)</span>
+          </div>
+        </div>
+
+        <!-- Dynamic Turn Timer (SVG Ring) -->
+        <div class="timer-container">
+          <div class="timer-ring-box" id="timer-ring-box">
+            <svg class="timer-svg" viewBox="0 0 36 36">
+              <path class="timer-circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              <path class="timer-circle-progress" id="timer-progress" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            </svg>
+            <span class="timer-number" id="timer-val">15</span>
+          </div>
+          <div class="timer-meta">
+            <div class="timer-status-text" id="status-headline">Đang đợi nước đi...</div>
+            <div class="timer-subtext" id="status-subline">Hết giờ sẽ tự động xử thua</div>
+          </div>
+        </div>
+
+        <!-- NEW: Tùy Chọn Thời Gian Mỗi Nước Đi -->
+        <div class="time-config-box">
+          <span>⏱️ Thời gian mỗi lượt:</span>
+          <select id="select-time-limit" class="select-time">
+            <option value="10">10s (Cờ chớp - Blitz)</option>
+            <option value="15" selected>15s (Tiêu chuẩn)</option>
+            <option value="30">30s (Suy nghĩ kỹ)</option>
+            <option value="60">60s (Thư thả)</option>
+            <option value="0">Vô hạn (Không tính giờ ∞)</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- Card 3: NƯỚC ĐI GẦN NHẤT (SUPER CLEAR LAST MOVE BOX) -->
+      <div class="last-move-card" id="last-move-box" style="display: none;">
+        <div class="last-move-info">
+          <span class="last-move-label">NƯỚC ĐI VỪA ĐÁNH</span>
+          <span class="last-move-player val-x" id="last-move-player">Bạn (X)</span>
+          <span class="last-move-num" id="last-move-num">Nước #1</span>
+        </div>
+        <div class="last-move-badge-wrap">
+          <div class="last-move-coord coord-human" id="last-move-coord">H8</div>
+        </div>
+      </div>
+
+      <!-- Card 4: Scoreboard -->
+      <div class="card scoreboard-card">
+        <div class="turn-header">
+          <span class="turn-label">BẢNG ĐIỂM</span>
+          <button class="btn-icon-text" id="btn-reset-score" title="Đặt lại điểm số">
+            ↺ Đặt lại
+          </button>
+        </div>
+        <div class="scoreboard-grid">
+          <div class="score-item x-val">
+            <div class="score-item-title" id="score-p1-label">Người chơi 1 (X)</div>
+            <div class="score-item-val" id="score-p1-val">0</div>
+          </div>
+          <div class="score-item draw-val">
+            <div class="score-item-title">Hòa</div>
+            <div class="score-item-val" id="score-draw-val">0</div>
+          </div>
+          <div class="score-item o-val">
+            <div class="score-item-title" id="score-p2-label">Người chơi 2 (O)</div>
+            <div class="score-item-val" id="score-p2-val">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 5: Action Buttons -->
+      <div class="card">
+        <div class="action-grid">
+          <button class="btn btn-primary btn-full" id="btn-new-game">
+            <span>✨</span> Ván Mới
+          </button>
+          <button class="btn" id="btn-undo" title="Hoàn tác nước đi gần nhất (Ctrl+Z)">
+            <span>↩</span> Đi Lại (Undo)
+          </button>
+          <button class="btn" id="btn-save" title="Lưu ván đấu hiện tại">
+            <span>💾</span> Lưu Ván
+          </button>
+          <button class="btn btn-full" id="btn-load" title="Tải lại ván đấu đã lưu">
+            <span>📂</span> Tải Lại Ván Đã Lưu
+          </button>
+        </div>
+        <div class="tools-row" style="margin-top: 10px;">
+          <button class="btn-icon-text" id="btn-toggle-sound">
+            <span id="sound-icon">🔊</span> <span id="sound-text">Âm thanh: Bật</span>
+          </button>
+          <span style="font-size: 0.72rem; color: var(--color-text-muted);">Phím tắt: Ctrl+Z (Undo)</span>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- MAIN BOARD CONTAINER -->
+    <main class="board-container">
+      <div class="board-shell">
+        
+        <!-- Top Coordinate Labels (A - O) -->
+        <div class="coord-row-labels coord-top" style="padding-left: 16px; padding-right: 16px;">
+          <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span>
+          <span>F</span><span>G</span><span>H</span><span>I</span><span>J</span>
+          <span>K</span><span>L</span><span>M</span><span>N</span><span>O</span>
+        </div>
+
+        <div class="board-grid-wrapper">
+          <!-- Left Coordinate Labels (1 - 15) -->
+          <div class="coord-col-labels coord-left">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+            <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+            <span>11</span><span>12</span><span>13</span><span>14</span><span>15</span>
+          </div>
+
+          <!-- 15x15 Interactive Grid -->
+          <div class="board" id="board" data-interactive="true" data-current-player="1"></div>
+
+          <!-- Right Coordinate Labels (1 - 15) -->
+          <div class="coord-col-labels coord-right">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+            <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+            <span>11</span><span>12</span><span>13</span><span>14</span><span>15</span>
+          </div>
+        </div>
+
+        <!-- Bottom Coordinate Labels (A - O) -->
+        <div class="coord-row-labels coord-bottom" style="padding-left: 16px; padding-right: 16px; margin-top: 2px;">
+          <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span>
+          <span>F</span><span>G</span><span>H</span><span>I</span><span>J</span>
+          <span>K</span><span>L</span><span>M</span><span>N</span><span>O</span>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- GAME OVER MODAL -->
+  <div class="modal-overlay" id="game-over-modal">
+    <div class="modal-card">
+      <div class="modal-badge" id="modal-badge">🏆</div>
+      <h2 class="modal-title" id="modal-title">Chiến Thắng!</h2>
+      <p class="modal-message" id="modal-message">Người chơi X đã hoàn thành 5 quân liên tiếp và giành chiến thắng.</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-full" id="btn-modal-new-game">Chơi Ván Mới</button>
+        <button class="btn" id="btn-modal-close">Xem Lại Bàn Cờ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================== -->
+  <!-- MODULAR JAVASCRIPT ARCHITECTURE (EXTENDED MVC)                             -->
+  <!-- ========================================================================== -->
+  <script src="js/models/CoreLogic.js"></script>
+  <script src="js/ai/AIEngine.js"></script>
+  <script src="js/services/StorageManager.js"></script>
+  <script src="js/services/SoundSynthesizer.js"></script>
+  <script src="js/views/UIRenderer.js"></script>
+  <script src="js/controllers/GameController.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
